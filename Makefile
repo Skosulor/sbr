@@ -16,3 +16,5 @@ flash:
 fuse:
 	sudo avrdude -B 5 -c usbasp -p m328 -U lfuse:w:0xe2:m -U hfuse:w:0xd9:m -U efuse:w:0xff:m
 
+clean:
+	rm rune.hex
