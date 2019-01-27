@@ -1,0 +1,37 @@
+
+
+== Sample Rate Divider ==
+8 bit register R/W
+Address: 0x19
+Sample rate = 8kHz/(1 + SRD) 
+
+== Gyroscope Configuration ==
+8 bit register R/W
+Used for self-test and scale range 
+Bit 7,6,5: X,Y,Z self-test
+bit 3-4: scale range
+Address: 0x1B
+
+== Accelerometer Configuration ==
+8 bit register R/W
+Used for self-test and scale range 
+Bit 7,6,5: X,Y,Z self-test
+bit 3-4: scale range (± 2g, 4g, 8g16g)
+Address: 0x1C
+
+== FIFO Enable ==
+8 bit register R/W
+Enables sensor sampling, each axis (gyro) needs individual enabling
+Bit 6-4: Gyro Enable X,Y,Z
+Bit 3: Accelerometer Enable
+Bit 0-2: Exernal slave
+Address: 0x23
+
+== Acc. Output Registers ==
+8 bit registers, R
+3B  X-H
+3C  X-L
+3D  Y-H
+3E  Y-L
+3F  Z-H
+40  Z-L

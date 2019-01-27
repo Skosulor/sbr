@@ -7,6 +7,9 @@ disp:
 isr:
 	avr-gcc -mmcu=atmega328 -Wall isrTest.c nokia5110.c  -o rune.hex
 
+acc:
+	avr-gcc -mmcu=atmega328 -Wall accAngle.c twimaster.c nokia5110.c  -o rune.hex
+
 conn:
 	sudo avrdude -B 5 -c usbasp -p m328
 
