@@ -70,7 +70,6 @@
 char b[] = "Hello Wold";
 char e[] = "Error";
 char s[] = "Success";
-volatile int16_t i = 0;
 volatile double angle;
 volatile double gAngle;
 volatile double cAngle;
@@ -92,13 +91,13 @@ int main(void){
   init();
   TCNT1 = 0;
   sei();                                    // Enable global interrupts
-  long int i = 0;
+  int32_t i = 0;
 
   while(1){
 
     if(DEBUGG){
       i++;
-      if (i > 20000){
+      if (i > 5000){
         i++;
         NOKIA_clear();
         sprintf(b ,"AG: %d", (int16_t)(gAngle));
@@ -265,16 +264,15 @@ ISR(TIMER1_COMPA_vect){
 
   gAngle  = gAngle + nameHolder; 
   cAngle  = HPF * (cAngle + nameHolder) + LPF * angle;
-  isrTime = TCNT1;
 
-  // PID  - Add direction and map u-value range to -255 to 255
-  
-  e = r - cAngle;
-  ei = ei + e * INT_P; 
-  u = e*Kp + ei*Ki + (e-eOld)*INT_P*Kd;
+  // PID  - Add direction and map u-value range from 0 to 255
+  e    = r - cAngle;
+  ei   = ei + e * INT_P; 
+  u    = e*Kp + ei*Ki + (e-eOld)*INT_P*Kd;
   eOld = e;
 
   OCR0A = (int)(abs(u));
 
   sei(); 
+  isrTime = TCNT1;
 }
