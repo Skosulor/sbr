@@ -10,6 +10,16 @@ isr:
 acc:
 	avr-gcc -mmcu=atmega328 -Wall accAngle.c twimaster.c nokia5110.c  -o rune.hex
 
+both:
+	avr-gcc -mmcu=atmega328 -Wall accGyroAngle.c twimaster.c nokia5110.c  -o rune.hex
+
+pid:
+	avr-gcc -mmcu=atmega328 -Wall pid.c twimaster.c nokia5110.c  -o rune.hex
+
+
+gyro:
+	avr-gcc -mmcu=atmega328 -Wall gyroAngle.c twimaster.c nokia5110.c  -o rune.hex
+
 conn:
 	sudo avrdude -B 5 -c usbasp -p m328
 

@@ -70,12 +70,12 @@
 char b[] = "Hello Wold";
 char e[] = "Error";
 char s[] = "Success";
-volatile int i = 0;
+volatile int16_t i = 0;
 volatile double angle;
 volatile double gAngle;
 volatile double cAngle;
 volatile uint8_t first = 1;
-volatile int isrTime;
+volatile int16_t isrTime;
 uint8_t error = 0;
 
 void errorHandler(uint8_t e);
@@ -101,11 +101,11 @@ int main(void){
       if (i > 20000){
         i++;
         NOKIA_clear();
-        sprintf(b ,"AG: %d", (int)(gAngle));
+        sprintf(b ,"AG: %d", (int16_t)(gAngle));
         NOKIA_print(0, 0, b, 0); 
-        sprintf(b ,"AA: %d", (int)(angle));
+        sprintf(b ,"AA: %d", (int16_t)(angle));
         NOKIA_print(0, 9, b, 0); 
-        sprintf(b ,"CA: %d", (int)(cAngle));
+        sprintf(b ,"CA: %d", (int16_t)(cAngle));
         NOKIA_print(0, 18, b, 0); 
         sprintf(b ,"T: %d", isrTime);
         NOKIA_print(0, 27, b, 0); 
@@ -153,6 +153,12 @@ void init(){
   OCR1A = CMP_VAL;                          // Compare value
   TCCR1B |= ((1 << CS12) | (1 << CS10));    // Prescaleler = 1024
 
+  // Phase-correct PWM 
+  DDRD |= (1 << DDD6);                      // Output on PD6
+  OCR0A = 0x0;                              // Duty cycle 0%
+  TCCR0A |= (1 << COM0A1) || (1 << COM0A0); // Set on counting up, clear on count down
+  TCCR0A |= (1 << WGM02) || (1 << WGM00);   // Phase-correct, TOP: OCRA
+  TCCR0B |= (1 << CS00);                    // No prescaling
 
   // Init nokia display
   NOKIA_init(0);
@@ -198,14 +204,25 @@ ISR(TIMER1_COMPA_vect){
   cli();
   TCNT1= 0;
 
+  // PID
+  double Kp = 1;
+  double Ki = 0;
+  double Kd = 0;
+  double r  = 0;
+  double e;
+  double u;
+  static double eOld;
+  static double ei;
+  
+
   // Gyroscope vars
   unsigned char gxh, gxl;
-  int gx;
+  int16_t gx;
   double nameHolder;
   
   // Accelerometer vars
   unsigned char yh, yl, zh, zl, t;
-  int y, z;
+  int16_t y, z;
 
   // Get mpu Values
   i2c_start_wait(MPU_ADDR + I2C_WRITE);
@@ -230,13 +247,13 @@ ISR(TIMER1_COMPA_vect){
   i2c_stop();
 
   // Angle from Accelerometer
-  y     = ((int)(yh) << 8) + (int)(yl);
-  z     = ((int)(zh) << 8) + (int)(zl);
+  y     = ((int16_t)(yh) << 8) + (int16_t)(yl);
+  z     = ((int16_t)(zh) << 8) + (int16_t)(zl);
   angle = atan((double)(y)/(double)(z)); 
   angle = angle * RAD_TO_DEG; 
 
   // Angle from gyroscope
-  gx = ((int)(gxh) << 8) + (int)(gxl);
+  gx = ((int16_t)(gxh) << 8) + (int16_t)(gxl);
   gx = ((gx + 866) / GYRO_SEN);              // shift: SCALE_0: ~ 131 SCALE_3: ~ 16
   /* gx = ((gx + 866)  >> 7); */             // Faster implementation but division by 132
   nameHolder = ((double)(gx))*INT_P;  
@@ -249,6 +266,15 @@ ISR(TIMER1_COMPA_vect){
   gAngle  = gAngle + nameHolder; 
   cAngle  = HPF * (cAngle + nameHolder) + LPF * angle;
   isrTime = TCNT1;
+
+  // PID  - Add direction and map u-value range to -255 to 255
+  
+  e = r - cAngle;
+  ei = ei + e * INT_P; 
+  u = e*Kp + ei*Ki + (e-eOld)*INT_P*Kd;
+  eOld = e;
+
+  OCR0A = (int)(abs(u));
 
   sei(); 
 }
