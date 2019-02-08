@@ -76,6 +76,7 @@ volatile double cAngle;
 volatile uint8_t first = 1;
 volatile int16_t isrTime;
 uint8_t error = 0;
+double u;                       // MOVE 
 
 void errorHandler(uint8_t e);
 void init();
@@ -106,7 +107,7 @@ int main(void){
         NOKIA_print(0, 9, b, 0); 
         sprintf(b ,"CA: %d", (int16_t)(cAngle));
         NOKIA_print(0, 18, b, 0); 
-        sprintf(b ,"T: %d", isrTime);
+        sprintf(b ,"U: %d", (int)(u));
         NOKIA_print(0, 27, b, 0); 
         NOKIA_update();
         i = 0;
@@ -154,9 +155,11 @@ void init(){
 
   // Phase-correct PWM 
   DDRD |= (1 << DDD6);                      // Output on PD6
+  DDRD |= (1 << DDD7);                      // Direction control
+  DDRB |= (1 << DDB0);                      // Direction control
   OCR0A = 0x0;                              // Duty cycle 0%
-  TCCR0A |= (1 << COM0A1) || (1 << COM0A0); // Set on counting up, clear on count down
-  TCCR0A |= (1 << WGM02) || (1 << WGM00);   // Phase-correct, TOP: OCRA
+  TCCR0A |= (1 << COM0A1) | (0 << COM0A0);  // Set on counting up, clear on count down
+  TCCR0A |= (1 << WGM02)  | (1 << WGM00);   // Phase-correct, TOP: OCRA
   TCCR0B |= (1 << CS00);                    // No prescaling
 
   // Init nokia display
@@ -204,12 +207,11 @@ ISR(TIMER1_COMPA_vect){
   TCNT1= 0;
 
   // PID
-  double Kp = 1;
+  double Kp = 3.7;
   double Ki = 0;
   double Kd = 0;
   double r  = 0;
   double e;
-  double u;
   static double eOld;
   static double ei;
   
@@ -271,7 +273,19 @@ ISR(TIMER1_COMPA_vect){
   u    = e*Kp + ei*Ki + (e-eOld)*INT_P*Kd;
   eOld = e;
 
+  u = (255.0/90.0)*u;
+
+  if( u < 0){
+    PORTD |= (1 << DDD7);
+    PORTB &= ~(1 << DDB0);
+  }
+  else{
+    PORTB |= (1 << DDB0);
+    PORTD &= ~(1 << DDD7);
+  }
+
   OCR0A = (int)(abs(u));
+
 
   sei(); 
   isrTime = TCNT1;
