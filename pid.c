@@ -154,7 +154,7 @@ void init(){
   TCCR1B |= ((1 << CS12) | (1 << CS10));    // Prescaleler = 1024
 
   // Phase-correct PWM 
-  DDRD |= (1 << DDD6);                      // Output on PD6
+  DDRD |= (1 << DDD6);                      // PWM on PD6
   DDRD |= (1 << DDD7);                      // Direction control
   DDRB |= (1 << DDB0);                      // Direction control
   OCR0A = 0x0;                              // Duty cycle 0%
