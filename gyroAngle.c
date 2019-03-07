@@ -17,9 +17,10 @@
 #include <math.h>
 #include <util/delay.h>
 
-#define CMP_VAL 1000           // ISR interrupt freq = CMP_VAL/8000
-#define INT_FREQ CMP_VAL/(F_CPU/1024)
+#define CMP_VAL 100           // ISR interrupt freq = CMP_VAL/7812.5 : 100 ~ 12.8 ms = 78 Hz
+#define INT_PERIOD 0.0128     // 1/78.125
 #define NOKIA_VOP_VALUE 0x20
+#define RAW 1
 
 /* MPU6050 */
 #define MPU_ADDR        (0x68 << 1)
@@ -57,13 +58,14 @@
 #define LP_5            0x05 
 #define MAX_LP          0x06    // Max lp filter
 
-#define DEBUGG 0
+#define DEBUGG 1
 
 
 char b[] = "Hello Wold";
 char e[] = "Error";
 char s[] = "Success";
 volatile int i = 0;
+volatile double angle;
 uint8_t error = 0;
 
 void errorHandler(uint8_t e);
@@ -81,16 +83,21 @@ int main(void){
   TCNT1 = 0;
   sei();                                    // Enable global interrupts
   int i = 0;
+
   while(1){
+
     if(DEBUGG){
-      if (TCNT1 > 7000){
+      i++;
+      if (i > 10000){
         i++;
         NOKIA_clear();
-        sprintf(b ,"derp: %d", i);
+        sprintf(b ,"A: %d", (int)(angle));
         NOKIA_print(0, 0, b, 0); 
         NOKIA_update();
+        i = 0;
       }
     }
+
   }
 }
 
@@ -151,13 +158,13 @@ void init(){
   // set accelerometer scale range
   i2c_start_wait(MPU_ADDR);
   i2c_write(ACC_CONF + I2C_WRITE);
-  i2c_write(SCALE_3);
+  i2c_write(SCALE_0);
   i2c_stop();
   
   // set gyroscope scale range
   i2c_start_wait(MPU_ADDR);
   i2c_write(GYRO_CONF + I2C_WRITE);
-  i2c_write(SCALE_3);
+  i2c_write(SCALE_0);
   i2c_stop();
 
   // Enable mpu low pass filter
@@ -175,70 +182,38 @@ ISR(TIMER1_COMPA_vect){
 
   cli();
   TCNT1= 0;
-  static int i;
-  i++;
   char mess [20];
-  unsigned char yh, yl, zh, zl;
-  unsigned char gxh, gxl, t;
-  int y,z,gx;
+  unsigned char xh, xl;
+  int x;
   
-  double angle;
-  static double gAngle;
+  /* static double angle; */
 
   // Get mpu Values
   i2c_start_wait(MPU_ADDR + I2C_WRITE);
-  i2c_write(ACC_YH);
+  i2c_write(GYRO_XH);
   i2c_rep_start(MPU_ADDR + I2C_READ);
-
-  // Accelerometer Y and Z values
-  yh = i2c_readAck(); 
-  yl = i2c_readAck(); 
-  zh = i2c_readAck(); 
-  zl = i2c_readAck(); 
-
-  // Temp
-  t = i2c_readAck(); 
-  t = i2c_readAck(); 
-
   // Gyro
-  gxh = i2c_readAck(); 
-  gxl = i2c_readNak(); 
+
+  /* xl = i2c_readAck(); */ 
+  /* xl = i2c_readAck(); */ 
+  /* xl = i2c_readAck(); */ 
+  /* xl = i2c_readAck(); */ 
+  /* xl = i2c_readAck(); */ 
+  /* xl = i2c_readAck(); */ 
+
+  xh = i2c_readAck(); 
+  xl = i2c_readNak(); 
   
   // Stop i2c communication
   i2c_stop();
-  
-  // OBS MPU DATASHEET page 39
 
+  x = ((int)(xh) << 8) + (int)(xl);
+  if(!RAW){
+    x = ((x + 866) >> 7);                // SCALE_3: ~ 16
+                                       // SCALE_0: ~ 131
+    angle = angle + ((double)(x))*INT_PERIOD;  
+  }else
+    angle = x;
 
-  /* _delay_ms(50); */
-  /* //Read Gyroscope Values */
-  /* i2c_start_wait(MPU_ADDR); */
-  /* i2c_write(GYRO_XH); */
-  /* i2c_rep_start(MPU_ADDR + I2C_READ); */
-  /* gxh = i2c_readAck(); */ 
-  /* gxl = i2c_readAck(); */ 
-  /* i2c_stop(); */
-  
-
-  y = ((int)(yh) << 8) + (int)(yl);
-  z = ((int)(zh) << 8) + (int)(zl);
-  gx = ((int)(gxh) << 8) + (int)(gxl);
-  gx = ((gx + 107) >> 4);                // Offset ~+106 and sensetivity 16 
-                                        // SCALE_3: 16
-                                        // SCALE_0: 131
-  //Compute the angle
-  angle = atan((double)(y)/(double)(z)); 
-  angle = angle * 180.0/3.14;
-
-  gAngle = gAngle + (double)(gx)/0.125;
-
-  sprintf(mess,"A: %d", (int)(angle)); 
-  NOKIA_clear();
-  NOKIA_print(0, 0, mess, 0); 
-  sprintf(mess,"GA: %d", (int)(gAngle)); 
-  NOKIA_print(0, 9, mess, 0); 
-  NOKIA_update();
-  sei();
-
-
+  sei(); 
 }

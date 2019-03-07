@@ -1,0 +1,16 @@
+  
+  offset = 155
+  double Kp = 14.0;
+  double Ki = 2;
+  double Kd = 0;
+  double r  = 0;
+  double e;
+  static double eOld;
+  ---------------------
+  static double ei;
+  offset = 160
+  double Kp = 10.0;
+  double Ki = 20;
+  double Kd = 0;
+  double r  = 0;
+  double e;

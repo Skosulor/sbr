@@ -1,4 +1,4 @@
-
+NEEDS TO BE UPDATED / MAYBE WRONG INFO
 
 == Sample Rate Divider ==
 8 bit register R/W
@@ -19,14 +19,6 @@ Bit 7,6,5: X,Y,Z self-test
 bit 3-4: scale range (± 2g, 4g, 8g16g)
 Address: 0x1C
 
-== FIFO Enable ==
-8 bit register R/W
-Enables sensor sampling, each axis (gyro) needs individual enabling
-Bit 6-4: Gyro Enable X,Y,Z
-Bit 3: Accelerometer Enable
-Bit 0-2: Exernal slave
-Address: 0x23
-
 == Acc. Output Registers ==
 8 bit registers, R
 3B  X-H
@@ -35,3 +27,6 @@ Address: 0x23
 3E  Y-L
 3F  Z-H
 40  Z-L
+
+
+

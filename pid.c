@@ -1,10 +1,20 @@
 
 /* * * * * * * * * * * * *  
  *                       *
- *  Angle Calculation    *
+ *   Self Balancing      *
+ *       Robot           *
  *    with mpu6050       *
  *                       *
  * * * * * * * * * * * * */     
+
+
+/* TODO: Notes
+ *
+ * b,o,g, third from bottom right (programmer)
+ * 
+ *
+ *
+ * */
 
 #define F_CPU 8000000UL
 
@@ -23,7 +33,7 @@
 #define PRESCALE_VAL    1024                            
 #define RAD_TO_DEG      180/3.14
 #define GYRO_SEN        131.0
-#define CMP_VAL         20                              // ISR interrupt freq = CMP_VAL/7812.5 
+#define CMP_VAL         30                              // ISR interrupt freq = CMP_VAL/7812.5 
 #define HPF             0.98                            // Ratio of Angle from gyro
 #define LPF             (1 - HPF)                       // Ratio of Angle from accelerometer
 #define INT_P           CMP_VAL/(F_CPU/PRESCALE_VAL)    // CMP_VAL = 100 -> 0.0128
@@ -64,7 +74,10 @@
 #define LP_5            0x05 
 #define MAX_LP          0x06    // Max lp filter
 
-#define DEBUGG 1
+#define PWM_OFFSET      152.0
+#define PWM_SCALER      (255.0-PWM_OFFSET)
+
+#define DEBUGG 0
 
 
 char b[] = "Hello Wold";
@@ -122,9 +135,11 @@ int main(void){
  * ----------------------------*/
 
 void nWrite(char *mess){
-  NOKIA_print(0, 0, mess, 0); 
-  NOKIA_update();
-  NOKIA_scroll(-9);
+
+  /* NOKIA_print(0, 0, mess, 0); */ 
+  /* NOKIA_update(); */
+  /* NOKIA_scroll(-9); */
+
 }
 
 /* ----------------------------*
@@ -133,12 +148,16 @@ void nWrite(char *mess){
 
 void errorHandler(uint8_t err){
   if(err){
-    NOKIA_print(0, 0, e, 0);
-    NOKIA_update();
-    while(1);
+
+    /* NOKIA_print(0, 0, e, 0); */
+    /* NOKIA_update(); */
+    /* while(1); */
+
   }else{
-    NOKIA_print(0, 0, s, 0);
-    NOKIA_update();
+
+    /* NOKIA_print(0, 0, s, 0); */
+    /* NOKIA_update(); */
+
   }
 }
 
@@ -162,12 +181,12 @@ void init(){
   TCCR0A |= (1 << WGM02)  | (1 << WGM00);   // Phase-correct, TOP: OCRA
   TCCR0B |= (1 << CS00);                    // No prescaling
 
-  // Init nokia display
-  NOKIA_init(0);
-  NOKIA_LED_ENABLE();
-  NOKIA_setVop(NOKIA_VOP_VALUE);
-  NOKIA_update();
-  NOKIA_LED_PORT |= (1 << NOKIA_LED);
+  /* // Init nokia display */
+  /* NOKIA_init(0); */
+  /* NOKIA_LED_ENABLE(); */
+  /* NOKIA_setVop(NOKIA_VOP_VALUE); */
+  /* NOKIA_update(); */
+  /* NOKIA_LED_PORT |= (1 << NOKIA_LED); */
   
   // mpu6050 setup
   i2c_init();
@@ -207,11 +226,11 @@ ISR(TIMER1_COMPA_vect){
   TCNT1= 0;
 
   // PID
-  double Kp = 3.7;
-  double Ki = 0;
+  double Kp = 7.0;
+  double Ki = 18;
   double Kd = 0;
   double r  = 0;
-  double e;
+  double e = 0;
   static double eOld;
   static double ei;
   
@@ -273,7 +292,25 @@ ISR(TIMER1_COMPA_vect){
   u    = e*Kp + ei*Ki + (e-eOld)*INT_P*Kd;
   eOld = e;
 
-  u = (255.0/90.0)*u;
+   if( ei > 90)
+    ei = 90;
+  else if (ei < -90)
+    ei = 90;
+
+
+  // Stop overflow in timer register
+  if (u > 90)
+    u = 90;
+  else if (u < -90)
+    u = -90;
+
+  // map u between 0 and 255
+  u = (PWM_SCALER/90.0)*u;
+
+  if(u < 0)
+    u -= PWM_OFFSET;
+  if(u > 0)
+    u += PWM_OFFSET;
 
   if( u < 0){
     PORTD |= (1 << DDD7);
@@ -285,7 +322,7 @@ ISR(TIMER1_COMPA_vect){
   }
 
   OCR0A = (int)(abs(u));
-
+  /* OCR0A = 255; */
 
   sei(); 
   isrTime = TCNT1;
