@@ -1,0 +1,4 @@
+* Self Balancing Robot
+This repository contains code for a self balancing robot for a project course at Uppsala University.
+The final code used for the robot can be found in pid.c
+

@@ -1,17 +1,18 @@
 
-/* * * * * * * * * * * * *  
+/* * * * * * * * * * * * *
  *                       *
  *   Self Balancing      *
  *       Robot           *
- *    with mpu6050       *
+ *        by             *
+ *    Andreas Öhman      *
  *                       *
- * * * * * * * * * * * * */     
+ * * * * * * * * * * * * */
 
 
 /* TODO: Notes
  *
  * b,o,g, third from bottom right (programmer)
- * 
+ *
  *
  *
  * */
@@ -23,18 +24,18 @@
 #include <string.h>
 #include <stdio.h>
 #include <avr/interrupt.h>
-#include "nokia5110.h"    
+#include "nokia5110.h"
 #include "i2cmaster.h"
 #include <math.h>
 #include <util/delay.h>
 
 
-#define NOKIA_VOP_VALUE 0x20                            
-#define PRESCALE_VAL    1024                            
+#define NOKIA_VOP_VALUE 0x2
+#define PRESCALE_VAL    102
 #define RAD_TO_DEG      180/3.14
-#define GYRO_SEN        131.0
+#define GYRO_SEN        121.0
 #define CMP_VAL         30                              // ISR interrupt freq = CMP_VAL/7812.5 
-#define HPF             0.98                            // Ratio of Angle from gyro
+#define HPF             0.97                            // Ratio of Angle from gyro
 #define LPF             (1 - HPF)                       // Ratio of Angle from accelerometer
 #define INT_P           CMP_VAL/(F_CPU/PRESCALE_VAL)    // CMP_VAL = 100 -> 0.0128
 
@@ -67,14 +68,14 @@
 #define INTERNAL_CLK    0x00
 
 #define NO_LP           0x00    // ~No lp filter
-#define LP_1            0x01 
-#define LP_2            0x02 
-#define LP_3            0x03 
-#define LP_4            0x04 
-#define LP_5            0x05 
+#define LP_1            0x01
+#define LP_2            0x02
+#define LP_3            0x03
+#define LP_4            0x04
+#define LP_5            0x05
 #define MAX_LP          0x06    // Max lp filter
 
-#define PWM_OFFSET      152.0
+#define PWM_OFFSET      142.0
 #define PWM_SCALER      (255.0-PWM_OFFSET)
 
 #define DEBUGG 0
@@ -89,7 +90,7 @@ volatile double cAngle;
 volatile uint8_t first = 1;
 volatile int16_t isrTime;
 uint8_t error = 0;
-double u;                       // MOVE 
+double u;                       // MOVE
 
 void errorHandler(uint8_t e);
 void init();
@@ -103,8 +104,8 @@ ISR(TIMER1_COMPA_vect);
 
 int main(void){
   init();
-  TCNT1 = 0;
-  sei();                                    // Enable global interrupts
+  sei();                        // Enable global interrupts
+  TCNT1     = 0;
   int32_t i = 0;
 
   while(1){
@@ -115,13 +116,13 @@ int main(void){
         i++;
         NOKIA_clear();
         sprintf(b ,"AG: %d", (int16_t)(gAngle));
-        NOKIA_print(0, 0, b, 0); 
+        NOKIA_print(0, 0, b, 0);
         sprintf(b ,"AA: %d", (int16_t)(angle));
-        NOKIA_print(0, 9, b, 0); 
+        NOKIA_print(0, 9, b, 0);
         sprintf(b ,"CA: %d", (int16_t)(cAngle));
-        NOKIA_print(0, 18, b, 0); 
+        NOKIA_print(0, 18, b, 0);
         sprintf(b ,"U: %d", (int)(u));
-        NOKIA_print(0, 27, b, 0); 
+        NOKIA_print(0, 27, b, 0);
         NOKIA_update();
         i = 0;
       }
@@ -187,7 +188,7 @@ void init(){
   /* NOKIA_setVop(NOKIA_VOP_VALUE); */
   /* NOKIA_update(); */
   /* NOKIA_LED_PORT |= (1 << NOKIA_LED); */
-  
+
   // mpu6050 setup
   i2c_init();
   i2c_start_wait(MPU_ADDR);                 // Write to MPU
@@ -202,7 +203,7 @@ void init(){
   i2c_write(ACC_CONF + I2C_WRITE);
   i2c_write(SCALE_3);
   i2c_stop();
-  
+
   // set gyroscope scale range
   i2c_start_wait(MPU_ADDR);
   i2c_write(GYRO_CONF + I2C_WRITE);
@@ -225,21 +226,24 @@ ISR(TIMER1_COMPA_vect){
   cli();
   TCNT1= 0;
 
-  // PID
-  double Kp = 7.0;
-  double Ki = 18;
+  /* // PID */
+  /* double Kp = 13.0; */
+  /* double Ki = 25; */
+
+  double Kp = 10.0;
+  double Ki = 25;
   double Kd = 0;
   double r  = 0;
   double e = 0;
   static double eOld;
   static double ei;
-  
+
 
   // Gyroscope vars
   unsigned char gxh, gxl;
   int16_t gx;
   double nameHolder;
-  
+
   // Accelerometer vars
   unsigned char yh, yl, zh, zl, t;
   int16_t y, z;
@@ -250,45 +254,45 @@ ISR(TIMER1_COMPA_vect){
   i2c_rep_start(MPU_ADDR + I2C_READ);
 
   // Accelerometer
-  yh = i2c_readAck(); 
-  yl = i2c_readAck(); 
-  zh = i2c_readAck(); 
-  zl = i2c_readAck(); 
+  yh = i2c_readAck();
+  yl = i2c_readAck();
+  zh = i2c_readAck();
+  zl = i2c_readAck();
 
   // Temprature
-  t = i2c_readAck(); 
-  t = i2c_readAck(); 
+  t = i2c_readAck();
+  t = i2c_readAck();
 
   // Gyro
-  gxh = i2c_readAck(); 
-  gxl = i2c_readNak(); 
-  
+  gxh = i2c_readAck();
+  gxl = i2c_readNak();
+
   // Stop i2c communication
   i2c_stop();
 
   // Angle from Accelerometer
   y     = ((int16_t)(yh) << 8) + (int16_t)(yl);
   z     = ((int16_t)(zh) << 8) + (int16_t)(zl);
-  angle = atan((double)(y)/(double)(z)); 
-  angle = angle * RAD_TO_DEG; 
+  angle = atan((double)(y)/(double)(z));
+  angle = angle * RAD_TO_DEG;
 
   // Angle from gyroscope
   gx = ((int16_t)(gxh) << 8) + (int16_t)(gxl);
   gx = ((gx + 866) / GYRO_SEN);              // shift: SCALE_0: ~ 131 SCALE_3: ~ 16
   /* gx = ((gx + 866)  >> 7); */             // Faster implementation but division by 132
-  nameHolder = ((double)(gx))*INT_P;  
+  nameHolder = ((double)(gx))*INT_P;
 
   if(first == 1){
     nameHolder = angle;
     first = 0;
   }
 
-  gAngle  = gAngle + nameHolder; 
+  gAngle  = gAngle + nameHolder;
   cAngle  = HPF * (cAngle + nameHolder) + LPF * angle;
 
   // PID  - Add direction and map u-value range from 0 to 255
   e    = r - cAngle;
-  ei   = ei + e * INT_P; 
+  ei   = ei + e * INT_P;
   u    = e*Kp + ei*Ki + (e-eOld)*INT_P*Kd;
   eOld = e;
 
@@ -307,9 +311,9 @@ ISR(TIMER1_COMPA_vect){
   // map u between 0 and 255
   u = (PWM_SCALER/90.0)*u;
 
-  if(u < 0)
+  if(u < 0.25)
     u -= PWM_OFFSET;
-  if(u > 0)
+  if(u > 0.25)
     u += PWM_OFFSET;
 
   if( u < 0){
@@ -324,6 +328,6 @@ ISR(TIMER1_COMPA_vect){
   OCR0A = (int)(abs(u));
   /* OCR0A = 255; */
 
-  sei(); 
+  sei();
   isrTime = TCNT1;
 }
